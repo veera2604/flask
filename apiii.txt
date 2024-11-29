@@ -1,0 +1,2810 @@
+PROJECT ESS-(employee managment service)
+
+RBA-authendication-3type login in single page differnt id(admin,employee,manager)
+
+1.module- authendication
+admin-create userid,name,password in manualy from authendication.admin table( create_admin.py)-password is encrypted
+
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ess.settings')
+django.setup()
+
+from authentication.models import Admin
+import bcrypt
+
+username = 'ess'
+user_id = 'admin'
+email = 'veeramurugan.uniq@gmail.com'
+raw_password = 'veera1234'  
+hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+admin_user = Admin(username=username, user_id=user_id, email=email, password=hashed_password)
+admin_user.save()
+print("Admin created")
+
+
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ess.settings')
+django.setup()
+
+from authentication.models import ManagingDirector
+import bcrypt
+
+username = 'md'
+user_id = 'md'
+email = 'veeramurugan.uni@gmail.com'
+raw_password = 'veera1234'  
+hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+md_user = ManagingDirector(username=username, user_id=user_id, email=email, password=hashed_password)
+md_user.save()
+print("MD created")
+
+
+
+
+
+from django.db import models
+
+class Admin(models.Model):
+    username = models.CharField(max_length=100)
+    user_id = models.CharField(max_length=100,unique=True)
+    email = models.EmailField()
+    password = models.CharField(max_length=255)
+    reset_token = models.CharField(max_length=255, null=True, blank=True)
+    token_expiration = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.email
+    
+class ManagingDirector(models.Model):
+    username = models.CharField(max_length=100)
+    user_id = models.CharField(max_length=100, unique=True)
+    email = models.EmailField()
+    password = models.CharField(max_length=255)
+    reset_token = models.CharField(max_length=255, null=True, blank=True)
+    token_expiration = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.email
+
+class Department(models.Model):
+    department_id = models.CharField(max_length=50, unique=True)
+    department_name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.department_name
+
+class Shift(models.Model):
+    shift_number = models.CharField(max_length=50, unique=True)
+    shift_start_time = models.TimeField()
+    shift_end_time = models.TimeField()
+
+    def __str__(self):
+        return self.shift_number
+
+class Manager(models.Model):
+    manager_id = models.CharField(max_length=100, unique=True)
+    manager_name = models.CharField(max_length=255)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE)  # ForeignKey to Department
+    email = models.EmailField(unique=True)
+    gender = models.CharField(max_length=10)
+    manager_image = models.ImageField(upload_to='manager_images/')
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE)  # ForeignKey to Shift
+    dob = models.DateField()
+    hired_date = models.DateField()
+    username = models.CharField(max_length=100, unique=True)
+    password = models.CharField(max_length=255) 
+    role = models.CharField(max_length=50, default='manager')
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    state = models.TextField(null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
+    pincode = models.CharField(max_length=10, null=True, blank=True)
+    linkedin_profile_link = models.URLField(null=True, blank=True)  
+    reset_token = models.CharField(max_length=64, blank=True, null=True)
+    token_expiration = models.DateTimeField(blank=True, null=True)
+
+    @property
+    def department_name(self):
+        return self.department.department_name
+
+    def __str__(self):
+        return self.manager_name 
+    
+class Employee(models.Model):
+    employee_id = models.CharField(max_length=50, unique=True)
+    employee_name = models.CharField(max_length=100)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE)
+    email = models.EmailField()
+    gender = models.CharField(max_length=10)
+    employee_image = models.ImageField(upload_to='employee_images/')
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
+    dob = models.DateField()
+    hired_date = models.DateField()
+    username = models.CharField(max_length=50, unique=True)
+    password = models.CharField(max_length=100)
+    role = models.CharField(max_length=50, default='employee')  
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    state = models.TextField(null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
+    pincode = models.CharField(max_length=10, null=True, blank=True)
+    linkedin_profile_link = models.URLField(null=True, blank=True)   
+    reset_token = models.CharField(max_length=64, blank=True, null=True)
+    token_expiration = models.DateTimeField(blank=True, null=True)
+
+    @property
+    def department_name(self):
+        return self.department.department_name
+
+    def __str__(self):
+        return self.employee_name
+
+class Location(models.Model):
+    location_id = models.CharField(max_length=50, unique=True)
+    location_name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.location_name
+    
+
+
+class Ticket(models.Model):
+    STATUS_CHOICES = [
+        ('Open', 'Open'),
+        ('Closed', 'Closed'),
+        ('In Progress', 'In Progress'),
+    ]
+
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="created_tickets" , null=True)
+    Reciver= models.TextField()
+    assigned_to = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_tickets")
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Open')
+    proof = models.FileField(upload_to='ticket_proofs/', null=True, blank=True)
+
+    def __str__(self):
+        return self.title
+
+
+
+
+
+import secrets
+import datetime
+from django.utils import timezone
+from .models import Admin, Manager, Employee, ManagingDirector
+
+def generate_reset_token(email):
+    # Generate a secure random token
+    token = secrets.token_urlsafe(32)
+    # Set the token expiration time (1 hour from now)
+    expiration = timezone.now() + datetime.timedelta(hours=1)
+    
+    # Update the Admin object with the reset token and expiration time
+    try:
+        user = Admin.objects.get(email=email)
+        user.reset_token = token
+        user.token_expiration = expiration
+        user.save()
+    except Admin.DoesNotExist:
+        return None
+    
+    return token
+
+def validate_reset_token(token):
+    try:
+        # Find the user by token and check if it's still valid
+        user = Admin.objects.get(reset_token=token)
+        if user.token_expiration and user.token_expiration > timezone.now():
+            return True
+        return False
+    except Admin.DoesNotExist:
+        return False
+
+def get_email_from_token(token):
+    try:
+        # Find the user by token
+        user = Admin.objects.get(reset_token=token)
+        return user.email
+    except Admin.DoesNotExist:
+        return None
+    
+def generate_reset_token_for_manager(email):
+    token = secrets.token_urlsafe(32)
+    expiration = timezone.now() + datetime.timedelta(hours=1)
+    
+    try:
+        manager = Manager.objects.get(email=email)
+        manager.reset_token = token
+        manager.token_expiration = expiration
+        manager.save()
+        return token
+    except Manager.DoesNotExist:
+        return None
+
+# Validate reset token for manager
+def validate_reset_token_for_manager(token):
+    try:
+        manager = Manager.objects.get(reset_token=token)
+        if manager.token_expiration and manager.token_expiration > timezone.now():
+            return True
+        return False
+    except Manager.DoesNotExist:
+        return False
+
+# Get email from reset token for manager
+def get_email_from_token_for_manager(token):
+    try:
+        manager = Manager.objects.get(reset_token=token)
+        return manager.email
+    except Manager.DoesNotExist:
+        return None
+
+# Generate reset token for employee
+def generate_reset_token_for_employee(email):
+    token = secrets.token_urlsafe(32)
+    expiration = timezone.now() + datetime.timedelta(hours=1)
+    
+    try:
+        employee = Employee.objects.get(email=email)
+        employee.reset_token = token
+        employee.token_expiration = expiration
+        employee.save()
+        return token
+    except Employee.DoesNotExist:
+        return None
+
+# Validate reset token for employee
+def validate_reset_token_for_employee(token):
+    try:
+        employee = Employee.objects.get(reset_token=token)
+        if employee.token_expiration and employee.token_expiration > timezone.now():
+            return True
+        return False
+    except Employee.DoesNotExist:
+        return False
+
+# Get email from reset token for employee
+def get_email_from_token_for_employee(token):
+    try:
+        employee = Employee.objects.get(reset_token=token)
+        return employee.email
+    except Employee.DoesNotExist:
+        return None
+    
+# Generate reset token for md
+def generate_reset_token_for_md(email):
+    token = secrets.token_urlsafe(32)
+    expiration = timezone.now() + datetime.timedelta(hours=1)
+    
+    try:
+        md = ManagingDirector.objects.get(email=email)
+        md.reset_token = token
+        md.token_expiration = expiration
+        md.save()
+        return token
+    except ManagingDirector.DoesNotExist:
+        return None
+
+# Validate reset token for md
+def validate_reset_token_for_md(token):
+    try:
+        md = ManagingDirector.objects.get(reset_token=token)
+        if md.token_expiration and md.token_expiration > timezone.now():
+            return True
+        return False
+    except ManagingDirector.DoesNotExist:
+        return False
+
+# Get email from reset token for md
+def get_email_from_token_for_md(token):
+    try:
+        md = ManagingDirector.objects.get(reset_token=token)
+        return md.email
+    except ManagingDirector.DoesNotExist:
+        return None
+
+
+
+
+
+import re
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
+
+class CustomPasswordValidator:
+    def validate(self, password, user=None):
+        if len(password) < 8:
+            raise ValidationError(_("This password is too short. It must contain at least 8 characters."))
+
+        if not re.search(r'[A-Z]', password):
+            raise ValidationError(_("This password must contain at least one uppercase letter."))
+
+        if not re.search(r'[a-z]', password):
+            raise ValidationError(_("This password must contain at least one lowercase letter."))
+
+        if not re.search(r'[0-9]', password):
+            raise ValidationError(_("This password must contain at least one digit."))
+
+        if not re.search(r'[@$!%*?&]', password):
+            raise ValidationError(_("This password must contain at least one special character."))
+
+        common_passwords = ['password', '12345678', 'qwerty', 'letmein']
+        if password.lower() in common_passwords:
+            raise ValidationError(_("This password is too common."))
+
+    def get_help_text(self):
+        return _("Your password must contain at least 8 characters, including uppercase, lowercase, digit, and special character.")
+
+
+
+
+from calendar import monthrange
+import datetime
+from mailbox import Message
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from chat.models import Message
+
+from projectmanagement.models import Project, Role, Task, Team
+from .models import Admin,Manager, Department, Shift, Employee, Location, ManagingDirector,Ticket
+from attendance.models import Attendance, ResetRequest
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.hashers import check_password
+from django.conf import settings
+from django.core.mail import send_mail
+from .utils import generate_reset_token, generate_reset_token_for_md, get_email_from_token_for_md, validate_reset_token, get_email_from_token, generate_reset_token_for_manager, validate_reset_token_for_manager, get_email_from_token_for_manager, generate_reset_token_for_employee, validate_reset_token_for_employee, get_email_from_token_for_employee, validate_reset_token_for_md 
+# from .forms import LoginForm
+from datetime import datetime, timedelta
+from django.utils.dateparse import parse_date
+from django.utils import timezone
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+import bcrypt
+
+def index(request):
+    return render(request, 'authentication/index.html')
+
+# def user_login(request):
+#     if request.method == 'POST':
+#         form = LoginForm(request.POST)
+#         if form.is_valid():
+#             username = form.cleaned_data['username']
+#             password = form.cleaned_data['password']
+            
+#             try:
+#                 user = Admin.objects.get(username=username)
+#                 if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+#                     request.session['user'] = username
+#                     request.session['role'] = 'admin'
+#                     return redirect('custom_admin_home')
+#                 else:
+#                     messages.error(request, 'Invalid credentials')
+#             except Admin.DoesNotExist:
+#                 messages.error(request, 'Invalid credentials')
+#     else:
+#         form = LoginForm()
+#     return render(request, 'authentication/admin_login.html', {'form': form})
+
+def user_logout(request):
+    request.session.flush()
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('index')
+
+def forgot_password(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+
+        try:
+            user = Admin.objects.get(email=email)
+            token = generate_reset_token(email)  # Generate a reset token
+            if token:
+                reset_link = f"http://127.0.0.1:8000/admin/reset_password/{token}/"
+
+                send_mail(
+                    'Password Reset Request',
+                    f'Hello,\n\nWe received a request to reset your password. '
+                    f'Click the link below to reset your password:\n\n{reset_link}\n\n'
+                    'If you did not request this change, please ignore this email.\n\nBest regards,\nVulturelines Tech Management Private Ltd.,',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+
+                messages.success(request, 'Password reset link sent to your email.')
+                return redirect('user_login')
+            else:
+                messages.error(request, 'Something went wrong. Please try again later.')
+        except Admin.DoesNotExist:
+            messages.error(request, 'Email not found.')
+    
+    return render(request, 'authentication/forgot_password.html')
+
+# Reset Password View
+def reset_password(request, token):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+
+        if validate_reset_token(token):  # Check if the token is valid
+            email = get_email_from_token(token)  # Get email from token
+            if email:
+                try:
+                    user = Admin.objects.get(email=email)
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    
+                    # Update the password and clear the reset token and expiration
+                    user.password = hashed_password
+                    user.reset_token = None
+                    user.token_expiration = None
+                    user.save()
+
+                    messages.success(request, 'Password has been reset successfully.')
+                    return redirect('user_login')
+                except Admin.DoesNotExist:
+                    messages.error(request, 'User not found.')
+            else:
+                messages.error(request, 'Invalid token.')
+        else:
+            messages.error(request, 'Invalid or expired token.')
+
+    return render(request, 'authentication/reset_password.html', {'token': token})
+
+def custom_admin_home(request):
+    if 'user' not in request.session:
+        return redirect('user_login')
+    
+    managers = Manager.objects.all()
+    employees = Employee.objects.all()
+    departments = Department.objects.all()
+    shifts = Shift.objects.all()
+    locations = Location.objects.all()
+    projects=Project.objects.all()
+    tasks=Task.objects.all()
+    roles=Role.objects.all()
+    teams=Team.objects.all()
+
+    # Prepare context for rendering the template
+    context = {
+        'managers': managers,
+        'employees': employees,
+        'departments': departments,
+        'shifts': shifts,
+        'locations': locations,
+        'createprojects':projects,
+        'createtasks':tasks,
+        'createroles':roles,
+        'teams':teams,
+    }
+
+    return render(request, 'authentication/admin_dashboard.html', context)
+
+def common_user_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        user_id = request.POST.get('user_id')
+        password = request.POST.get('password').encode('utf-8') 
+
+        # Try to authenticate as a Manager
+        try:
+            manager = Manager.objects.get(username=username, manager_id=user_id)
+            if bcrypt.checkpw(password, manager.password.encode('utf-8')):
+                request.session['user'] = username
+                request.session['user_id'] = user_id
+                request.session['email'] = manager.email
+                request.session['role'] = 'manager'
+                
+                # Update is_delivered field for any undelivered messages
+                undelivered_messages = Message.objects.filter(receiver_id=user_id, is_delivered=False)
+                if undelivered_messages.exists():
+                    undelivered_messages.update(is_delivered=True)
+                return redirect('manager_dashboard')
+            else:
+                print("Password did not match for Manager.")
+        except Manager.DoesNotExist:
+            print("Manager does not exist.")
+            manager = None
+
+        # Try to authenticate as an Employee
+        try:
+            employee = Employee.objects.get(username=username, employee_id=user_id)
+            if bcrypt.checkpw(password, employee.password.encode('utf-8')): 
+                request.session['user'] = username
+                request.session['user_id'] = user_id
+                request.session['email'] = employee.email
+                request.session['role'] = 'employee'
+                
+                
+                # Update is_delivered field for any undelivered messages
+                undelivered_messages = Message.objects.filter(receiver_id=user_id, is_delivered=False)
+                if undelivered_messages.exists():
+                    undelivered_messages.update(is_delivered=True)
+                return redirect('employee_dashboard')
+            else:
+                print("Password did not match for Employee.")
+        except Employee.DoesNotExist:
+            print("Employee does not exist.")
+            employee = None
+            
+            
+        try:
+            user = Admin.objects.get(username=username,user_id=user_id)
+            if bcrypt.checkpw(password, user.password.encode('utf-8')):
+                request.session['user'] = username
+                request.session['user_id'] = user_id
+                request.session['role'] = 'admin'
+                
+                # Update is_delivered field for any undelivered messages
+                undelivered_messages = Message.objects.filter(receiver_id=username, is_delivered=False)
+                if undelivered_messages.exists():
+                    undelivered_messages.update(is_delivered=True)
+                return redirect('custom_admin_home')
+            else:
+                messages.error(request, 'Invalid credentials')
+        except Admin.DoesNotExist:
+                messages.error(request, 'Invalid credentials') 
+        
+        try:
+            user = ManagingDirector.objects.get(username=username,user_id=user_id)
+            if bcrypt.checkpw(password, user.password.encode('utf-8')):
+                request.session['user'] = username
+                request.session['user_id'] = user_id
+                request.session['role'] = 'md'
+                return redirect('md_home')
+            else:
+                messages.error(request, 'Invalid credentials')
+        except ManagingDirector.DoesNotExist:
+                messages.error(request, 'Invalid credentials')           
+
+        # If both fail
+        
+    return render(request, 'authentication/common_login.html')
+
+
+def manager_dashboard(request):
+    if 'user' not in request.session or request.session.get('role') != 'manager':
+        return redirect('common_user_login')
+    # Check if the us  
+    manager_id = request.session.get('user_id')
+    manager = Manager.objects.get(manager_id=manager_id)
+    return render(request, 'authentication/manager_dashboard.html', {'manager':manager})
+
+def employee_dashboard(request):    
+    if 'user' not in request.session or request.session.get('role') != 'employee':
+        return redirect('common_user_login')
+    # Check if the us  
+    employee_id = request.session.get('user_id')
+    
+    employee = Employee.objects.get(employee_id=employee_id)
+    return render(request, 'authentication/employee_dashboard.html',{'employee':employee})  
+
+
+#help desk-----------------------------------------------------------
+
+def self_service(request):
+    
+    tickets=Ticket.objects.all()
+    
+   
+    
+    return render(request,"authentication/helpdesk.html",{"tickets":tickets})
+
+def add_ticket(request):
+    if request.method == 'POST':
+        # Retrieve POST data
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        receiver = request.POST.get('receiver')
+        hr_name = request.POST.get('hr_name')  # HR manager name (if HR is selected)
+        tl_name = request.POST.get('tl_name')  # TL manager name (if Team Lead is selected)
+        proof = request.FILES.get('proof')  # Uploaded proof file
+
+        print(hr_name)
+        print(tl_name)
+        # Determine the manager assigned based on the receiver (HR or TL)
+        assigned_manager = None
+        if receiver == 'HR':
+            assigned_manager = Manager.objects.filter(manager_name=hr_name).first()
+        elif receiver == 'TL':
+            assigned_manager = Manager.objects.filter(manager_name=tl_name).first()
+        
+        print(assigned_manager)
+
+        # Get the currently logged-in user as the ticket creator
+        # Assuming logged-in user is linked to the Employee model
+
+        # Save the data into the Ticket model
+        ticket = Ticket.objects.create(
+            title=title,
+            description=description,
+            Reciver=receiver,
+            assigned_to=assigned_manager,
+            proof=proof
+        )
+        
+        
+        return redirect('selfservice')
+
+
+    # Render the form
+    manager_names = Manager.objects.values_list('manager_name', 'department')
+
+    print(manager_names)
+    return render(request,'authentication/add_ticket.html',{"manager_names":manager_names})
+
+
+# Forgot password for manager
+def forgot_password_manager(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+
+        try:
+            user = Manager.objects.get(email=email)
+            token = generate_reset_token_for_manager(email)  # Generate a reset token
+            if token:
+                reset_link = f"http://127.0.0.1:8000/manager/reset_password_manager/{token}/"
+
+                send_mail(
+                    'Password Reset Request',
+                    f'Hello,\n\nWe received a request to reset your password. '
+                    f'Click the link below to reset your password:\n\n{reset_link}\n\n'
+                    'If you did not request this change, please ignore this email.\n\nBest regards,\nVulturelines Tech Management Private Ltd.,',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+
+                messages.success(request, 'Password reset link sent to your email.')
+                return redirect('common_user_login')
+            else:
+                messages.error(request, 'Something went wrong. Please try again later.')
+        except Manager.DoesNotExist:
+            messages.error(request, 'Email not found.')
+    
+    return render(request, 'authentication/forgot_password_manager.html')
+
+# Reset password for manager
+def reset_password_manager(request, token):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+
+        if validate_reset_token_for_manager(token):  # Check if the token is valid
+            email = get_email_from_token_for_manager(token)  # Get email from token
+            if email:
+                try:
+                    user = Manager.objects.get(email=email)
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    
+                    # Update the password and clear the reset token and expiration
+                    user.password = hashed_password
+                    user.reset_token = None
+                    user.token_expiration = None
+                    user.save()
+
+                    messages.success(request, 'Password has been reset successfully.')
+                    return redirect('common_user_login')
+                except Manager.DoesNotExist:
+                    messages.error(request, 'User not found.')
+            else:
+                messages.error(request, 'Invalid token.')
+        else:
+            messages.error(request, 'Invalid or expired token.')
+
+    return render(request, 'authentication/reset_password_manager.html', {'token': token})
+
+# Forgot password for employee
+def forgot_password_employee(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+
+        try:
+            user = Employee.objects.get(email=email)
+            token = generate_reset_token_for_employee(email)  # Generate a reset token
+            if token:
+                reset_link = f"http://127.0.0.1:8000/employee/reset_password_employee/{token}/"
+
+                send_mail(
+                    'Password Reset Request',
+                    f'Hello,\n\nWe received a request to reset your password. '
+                    f'Click the link below to reset your password:\n\n{reset_link}\n\n'
+                    'If you did not request this change, please ignore this email.\n\nBest regards,\nVulturelines Tech Management Private Ltd.,',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+
+                messages.success(request, 'Password reset link sent to your email.')
+                return redirect('common_user_login')
+            else:
+                messages.error(request, 'Something went wrong. Please try again later.')
+        except Employee.DoesNotExist:
+            messages.error(request, 'Email not found.')
+    
+    return render(request, 'authentication/forgot_password_employee.html')
+
+
+# Reset password for employee
+def reset_password_employee(request, token):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+
+        if validate_reset_token_for_employee(token):  # Check if the token is valid
+            email = get_email_from_token_for_employee(token)  # Get email from token
+            if email:
+                try:
+                    user = Employee.objects.get(email=email)
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    
+                    # Update the password and clear the reset token and expiration
+                    user.password = hashed_password
+                    user.reset_token = None
+                    user.token_expiration = None
+                    user.save()
+
+                    messages.success(request, 'Password has been reset successfully.')
+                    return redirect('common_user_login')
+                except Employee.DoesNotExist:
+                    messages.error(request, 'User not found.')
+            else:
+                messages.error(request, 'Invalid token.')
+        else:
+            messages.error(request, 'Invalid or expired token.')
+
+    return render(request, 'authentication/reset_password_employee.html', {'token': token})
+
+
+def add_manager(request):
+    if request.method == 'POST':
+        manager_id = request.POST.get('manager_id')
+        manager_name = request.POST.get('manager_name')
+        department_name = request.POST.get('department_name')
+        email = request.POST.get('email')
+        gender = request.POST.get('gender')
+        manager_image = request.FILES.get('manager_image')
+        shift_number = request.POST.get('shift')
+        dob = request.POST.get('dob')
+        hired_date = request.POST.get('hired_date')
+        username = request.POST.get('username')
+        raw_password = request.POST.get('password')
+
+        # Validate the password
+        try:
+            validate_password(raw_password)
+        except ValidationError as e:
+            for message in e.messages:
+                messages.error(request, message)
+            return redirect('custom_admin_home')
+        
+        hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Check if manager_id already exists (Unique Constraint Handling)
+        if Manager.objects.filter(manager_id=manager_id).exists():
+            messages.error(request, 'Manager ID already exists. Please use a unique ID.')
+            return redirect('custom_admin_home')
+
+        # Retrieve the Department and Shift instances
+        try:
+            department = Department.objects.get(department_name=department_name)
+        except Department.DoesNotExist:
+            messages.error(request, 'Selected department does not exist.')
+            return redirect('custom_admin_home')
+
+        try:
+            shift = Shift.objects.get(shift_number=shift_number)
+        except Shift.DoesNotExist:
+            messages.error(request, 'Selected shift does not exist.')
+            return redirect('custom_admin_home')
+
+        # Create and save the Manager instance
+        manager = Manager(
+            manager_id=manager_id,
+            manager_name=manager_name,
+            department=department,  # Set the ForeignKey reference
+            email=email,
+            gender=gender,
+            manager_image=manager_image,
+            shift=shift,  # Set the ForeignKey reference
+            dob=dob,
+            hired_date=hired_date,
+            username=username,
+            password=hashed_password,
+            role='manager'
+        )
+        manager.save()
+
+        messages.success(request, 'Manager added successfully!')
+        return redirect('custom_admin_home')
+
+    return render(request, 'authentication/admin_dashboard.html')
+
+def add_employee(request):
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+        employee_name = request.POST.get('employee_name')
+        department_name = request.POST.get('department_name')
+        email = request.POST.get('email')
+        gender = request.POST.get('gender')
+        employee_image = request.FILES.get('employee_image')
+        shift_number = request.POST.get('shift')
+        dob = request.POST.get('dob')
+        hired_date = request.POST.get('hired_date')
+        username = request.POST.get('username')
+        raw_password = request.POST.get('password')
+
+        # Validate the password
+        try:
+            validate_password(raw_password)
+        except ValidationError as e:
+            for message in e.messages:
+                messages.error(request, message)
+            return redirect('custom_admin_home')
+        
+        hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Check if employee_id already exists (Unique Constraint Handling)
+        if Employee.objects.filter(employee_id=employee_id).exists():
+            messages.error(request, 'Employee ID already exists. Please use a unique ID.')
+            return redirect('custom_admin_home')
+
+         # Retrieve the Department and Shift instances
+        try:
+            department = Department.objects.get(department_name=department_name)
+        except Department.DoesNotExist:
+            messages.error(request, 'Selected department does not exist.')
+            return redirect('custom_admin_home')
+
+        try:
+            shift = Shift.objects.get(shift_number=shift_number)
+        except Shift.DoesNotExist:
+            messages.error(request, 'Selected shift does not exist.')
+            return redirect('custom_admin_home')
+
+        # Create and save the employee
+        employee = Employee(
+            employee_id=employee_id,
+            employee_name=employee_name,
+            department=department,
+            email=email,
+            gender=gender,
+            employee_image=employee_image,
+            shift=shift,
+            dob=dob,
+            hired_date=hired_date,
+            username=username,
+            password=hashed_password ,
+            role='employee'
+        )
+        employee.save()
+
+        messages.success(request, 'Employee added successfully')
+        return redirect('custom_admin_home')
+
+    return render(request, 'authentication/admin_dashboard.html')
+
+def add_department(request):
+    if request.method == 'POST':
+        department_id = request.POST.get('department_id')
+        department_name = request.POST.get('department_name')
+
+        # Check if department_id already exists (Unique Constraint Handling)
+        if Department.objects.filter(department_id=department_id).exists():
+            messages.error(request, 'Department ID already exists. Please use a unique ID.')
+            return redirect('custom_admin_home')
+
+        # Save the department to MySQL using Django ORM
+        department = Department(department_id=department_id, department_name=department_name)
+        department.save()
+
+        messages.success(request, 'Department added successfully')
+        return redirect('custom_admin_home')
+    return render(request, 'authentication/admin_dashboard.html')
+
+def add_shift(request):
+    if request.method == 'POST':
+        shift_number = request.POST.get('shift_number')
+        shift_start_time = request.POST.get('shift_start')
+        shift_end_time = request.POST.get('shift_end')
+
+        # Save the shift
+        shift = Shift(shift_number=shift_number, shift_start_time=shift_start_time, shift_end_time=shift_end_time)
+        shift.save()
+
+        messages.success(request, 'Shift added successfully!')
+        return redirect('custom_admin_home')
+
+    return render(request, 'authentication/admin_dashboard.html')
+
+def add_location(request):
+    if request.method == 'POST':
+        location_id = request.POST.get('location_id')
+        location_name = request.POST.get('location_name')
+
+        # Check if location_id already exists (Unique Constraint Handling)
+        if Location.objects.filter(location_id=location_id).exists():
+            messages.error(request, 'location ID already exists. Please use a unique ID.')
+            return redirect('custom_admin_home')
+
+        # Create and save the Location instance
+        location = Location(
+            location_id=location_id,
+            location_name=location_name
+        )
+        location.save()
+
+        messages.success(request, 'Location added successfully!')
+        return redirect('custom_admin_home')
+
+    return render(request, 'authentication/admin_dashboard.html')
+
+#Update functionality for Admin
+def update_manager(request, id):
+    manager = get_object_or_404(Manager, id=id)
+    departments = Department.objects.all()
+    locations = Location.objects.all()
+    shifts = Shift.objects.all()
+
+    if request.method == 'POST':
+        manager_name = request.POST.get('manager_name')
+        manager_id = request.POST.get('manager_id')
+        manager_department_id = request.POST.get('manager_department')  # Use ID for lookup
+        manager_location_id = request.POST.get('manager_location')    # Use ID for lookup
+        manager_shift_number = request.POST.get('manager_shift')
+        manager_email = request.POST.get('manager_email')
+        manager_gender = request.POST.get('manager_gender')
+        manager_image = request.FILES.get('manager_image')
+        manager_dob_str = request.POST.get('manager_dob')
+        manager_hd_str = request.POST.get('manager_hd')
+        manager_username = request.POST.get('manager_username')
+
+        # Ensure the IDs are valid and exist
+        manager_department = get_object_or_404(Department, department_id=manager_department_id)
+        manager_location = get_object_or_404(Location, id=manager_location_id)
+        manager_shift = get_object_or_404(Shift, shift_number=manager_shift_number)
+
+        # Convert date strings to date objects
+        try:
+            manager_dob = parse_date(manager_dob_str)
+            manager_hd = parse_date(manager_hd_str)
+        except (ValueError, TypeError):
+            manager_dob = None
+            manager_hd = None
+            messages.error(request, 'Invalid date format. Please ensure dates are in YYYY-MM-DD format.')
+            return render(request, 'authentication/update_manager.html', {'manager': manager, 'departments': departments, 'locations': locations, 'shifts': shifts})
+
+        # Update the manager fields
+        manager.manager_name = manager_name
+        manager.manager_id = manager_id
+        manager.department = manager_department
+        manager.location = manager_location
+        manager.shift = manager_shift
+        manager.email = manager_email
+        manager.gender = manager_gender
+        if manager_image:
+            manager.manager_image = manager_image
+        manager.dob = manager_dob
+        manager.hired_date = manager_hd
+        manager.username = manager_username
+
+        # Save the updated manager
+        manager.save()
+
+        messages.success(request, 'Manager updated successfully.')
+        return redirect('custom_admin_home')
+    
+    context = {
+        'manager': manager, 
+        'departments': departments, 
+        'locations': locations, 
+        'shifts': shifts
+    }        
+
+    return render(request, 'authentication/update_manager.html', context)
+
+def update_employee(request, id):
+    employee = get_object_or_404(Employee, id=id)
+    departments = Department.objects.all()
+    locations = Location.objects.all()
+    shifts = Shift.objects.all()
+
+    if request.method == 'POST':
+        employee_name = request.POST.get('employee_name')
+        employee_id = request.POST.get('employee_id')
+        employee_department_id = request.POST.get('employee_department')  # Use ID for lookup
+        employee_location_id = request.POST.get('employee_location')      # Use ID for lookup
+        employee_shift_number = request.POST.get('employee_shift')
+        employee_email = request.POST.get('employee_email')
+        employee_gender = request.POST.get('employee_gender')
+        employee_image = request.FILES.get('employee_image')
+        employee_dob_str = request.POST.get('employee_dob')
+        employee_hd_str = request.POST.get('employee_hd')
+        employee_username = request.POST.get('employee_username')
+
+        # Ensure the IDs are valid and exist
+        employee_department = get_object_or_404(Department, department_id=employee_department_id)
+        employee_location = get_object_or_404(Location, id=employee_location_id)
+        employee_shift = get_object_or_404(Shift, shift_number=employee_shift_number)
+
+        # Convert date strings to date objects
+        try:
+            employee_dob = parse_date(employee_dob_str)
+            employee_hd = parse_date(employee_hd_str)
+        except (ValueError, TypeError):
+            employee_dob = None
+            employee_hd = None
+            messages.error(request, 'Invalid date format. Please ensure dates are in YYYY-MM-DD format.')
+            return render(request, 'authentication/update_employee.html', {'employee': employee, 'departments': departments, 'locations': locations, 'shifts': shifts})
+
+        # Update the employee fields
+        employee.employee_name = employee_name
+        employee.employee_id = employee_id
+        employee.department = employee_department
+        employee.location = employee_location
+        employee.shift = employee_shift
+        employee.email = employee_email
+        employee.gender = employee_gender
+        if employee_image:
+            employee.employee_image = employee_image
+        employee.dob = employee_dob
+        employee.hired_date = employee_hd
+        employee.username = employee_username
+
+        # Save the updated employee
+        employee.save()
+
+        messages.success(request, 'Employee updated successfully.')
+        return redirect('custom_admin_home')
+
+    context = {
+        'employee': employee,
+        'departments': departments,
+        'locations': locations,
+        'shifts': shifts
+    }
+
+    return render(request, 'authentication/update_employee.html', context)
+
+def update_department(request, id):
+    # Retrieve the Department object by ID
+    department = get_object_or_404(Department, id=id)
+    departments = Department.objects.all()
+   
+    # Prepare context for rendering the template
+    context = {  
+        'department': department,       
+        'departments': departments,       
+    }
+
+    if request.method == 'POST':
+        department_name = request.POST.get('department_name')
+
+        department.department_name = department_name
+        department.save()
+
+        messages.success(request, 'Department updated successfully.')
+        return redirect('custom_admin_home')
+    return render(request, 'authentication/update_department.html', context)
+
+def update_shift(request, id):
+    # Retrieve the Shift object by ID
+    shift = get_object_or_404(Shift, id=id)
+    shifts = Shift.objects.all()
+
+    context = {
+         'shifts': shifts,
+         'shift': shift,
+    }
+
+    if request.method == 'POST':
+        # Retrieve form data
+        shift_number = request.POST.get('shift_number')
+        shift_start_time = request.POST.get('shift_start_time')
+        shift_end_time = request.POST.get('shift_end_time')
+
+        # Update the shift fields
+        shift.shift_number = shift_number
+        shift.shift_start_time = shift_start_time
+        shift.shift_end_time = shift_end_time
+
+        # Save the updated shift
+        shift.save()
+
+        messages.success(request, 'Shift updated successfully.')
+        return redirect('custom_admin_home')
+
+    return render(request, 'authentication/update_shift.html',  context)
+
+def update_location(request, id):
+    # Retrieve the Location object by ID
+    location = get_object_or_404(Location, id=id)
+    locations = Location.objects.all()
+
+    # Prepare context for rendering the template
+    context = {
+         'locations': locations,
+         'location': location,
+    }
+
+    if request.method == 'POST':
+        # Retrieve form data
+        location_name = request.POST.get('location_name')
+        location_id = request.POST.get('location_id')
+        
+        # Update the location fields
+        location.location_name = location_name
+        location.location_id = location_id        
+
+        # Save the updated location
+        location.save()
+
+        messages.success(request, 'Location updated successfully.')
+        return redirect('custom_admin_home') 
+
+    return render(request, 'authentication/update_location.html', context)
+
+#Delete operations
+
+def delete_manager(request, manager_id):
+    if request.method == 'GET':
+        manager = get_object_or_404(Manager, manager_id=manager_id)
+        manager.delete()
+        messages.success(request, 'Manager deleted successfully!')
+    return redirect('custom_admin_home') 
+
+def delete_employee(request, employee_id):
+    if request.method == 'GET':
+        employee = get_object_or_404(Employee, employee_id=employee_id)
+        employee.delete()
+        messages.success(request, 'Employee deleted successfully!')
+    return redirect('custom_admin_home')
+
+def delete_department(request, department_id):
+    if request.method == 'GET':
+        department = get_object_or_404(Department, department_id=department_id)
+        department.delete()
+        messages.success(request, 'Department deleted successfully!')
+    return redirect('custom_admin_home') 
+
+def delete_shift(request, shift_number):
+    if request.method == 'GET':
+        shift = get_object_or_404(Shift, shift_number=shift_number)
+        shift.delete()
+        messages.success(request, 'Shift deleted successfully!')
+    return redirect('custom_admin_home')
+
+def delete_location(request, location_id):
+    if request.method == 'GET':
+        location = get_object_or_404(Location, location_id=location_id)
+        location.delete()
+        messages.success(request, 'Location deleted successfully!')
+    return redirect('custom_admin_home') 
+
+def admin_manager_attendance_history(request):
+    # Filter attendance records where the manager is not null
+    attendance_records = Attendance.objects.filter(manager__isnull=False)
+
+    if request.method == 'POST':
+        manager_id = request.POST.get('manager_id')
+        from_date = request.POST.get('from_date')
+        to_date = request.POST.get('to_date')
+
+        # Filter by manager's unique identifier (assuming manager_id is the unique identifier field in Manager model)
+        if manager_id:
+            attendance_records = attendance_records.filter(manager__manager_id=manager_id)
+
+        # Filter by date range
+        if from_date and to_date:
+            attendance_records = attendance_records.filter(date__range=[from_date, to_date])
+
+        # Display messages based on attendance records
+        if attendance_records.exists():
+            messages.success(request, f"Found {attendance_records.count()} attendance record(s) for manager ID {manager_id} from {from_date} to {to_date}.")
+        else:
+            messages.warning(request, f"No attendance records found for Manager ID {manager_id} in the selected date range.")
+
+    context = {
+        'attendance_records': attendance_records,
+    }
+    return render(request, 'attendance/admin_manager_attendance_history.html', context)
+
+def admin_employee_attendance_history(request):
+    # Filter attendance records where the employee is not null
+    attendance_records = Attendance.objects.filter(employee__isnull=False)
+
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+        from_date = request.POST.get('from_date')
+        to_date = request.POST.get('to_date')
+
+        # Filter by employee's unique identifier (assuming employee_id is the unique identifier field in Employee model)
+        if employee_id:
+            attendance_records = attendance_records.filter(employee__employee_id=employee_id)
+
+        # Filter by date range
+        if from_date and to_date:
+            attendance_records = attendance_records.filter(date__range=[from_date, to_date])
+
+        # Display messages based on attendance records
+        if attendance_records.exists():
+            messages.success(request, f"Found {attendance_records.count()} attendance record(s) for employee ID {employee_id} from {from_date} to {to_date}.")
+        else:
+            messages.warning(request, f"No attendance records found for employee ID {employee_id} in the selected date range.")
+
+    context = {
+        'attendance_records': attendance_records,
+    }
+    return render(request, 'attendance/admin_employee_attendance_history.html', context)
+
+#Admin & Manager weekly chart
+def admin_manager_weekly_chart(request):
+    if request.method == 'POST':
+        # Handle POST request for form submission
+        manager_id = request.POST.get('manager_id')
+    else:
+        # Handle GET request for week navigation
+        manager_id = request.GET.get('manager_id')
+    
+    # Check if employee_id is provided
+    if not manager_id:
+        # Handle the case where no Employee ID is provided
+        return render(request, 'attendance/admin_manager_weekly_chart.html', {
+            'error': 'Manager ID is required.'
+        })
+    
+    # Get the current week offset from GET parameters (how many weeks to move forward/backward)
+    week_offset = int(request.GET.get('week_offset', 0))
+    
+    today = datetime.now() .date()
+    start_of_week = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)  # Adjust the week by the offset
+    end_of_week = start_of_week + timedelta(days=6)
+
+    # Initialize a dictionary to store total hours per day with the date
+    weekly_hours = {}
+    labels = []
+    
+    # Variables to store total hours for the week and total overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    for i in range(6):  # Monday to Saturday
+        day_date = start_of_week + timedelta(days=i)
+        day_label = day_date.strftime('%a %b %d')  # Format: "Mon Sep 11"
+        labels.append(day_label)
+        weekly_hours[day_label] = 0  # Initialize the hours for each day as 0
+
+    # Get all attendance entries for the selected week
+    attendance_records = Attendance.objects.filter(
+        manager__manager_id=manager_id,  # Filter by the Employee ID
+        date__range=[start_of_week, end_of_week]
+    )
+
+    # Get all approved leave requests for the selected week
+    approved_leaves = ManagerLeaveRequest.objects.filter(
+        manager__manager_id=manager_id,
+        start_date__lte=end_of_week,
+        end_date__gte=start_of_week,
+        status='approved'
+    )
+
+    leave_days = set()
+    for leave in approved_leaves:
+        # Iterate through the leave days within the week
+        leave_start = max(leave.start_date, start_of_week)
+        leave_end = min(leave.end_date, end_of_week)
+        for i in range((leave_end - leave_start).days + 1):
+            leave_day = (leave_start + timedelta(days=i)).strftime('%a %b %d')
+            leave_days.add(leave_day)
+
+    # Calculate total working hours and overtime for each day
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            # Convert time_in and time_out to datetime and calculate work duration
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            day_label = record.date.strftime('%a %b %d')  # Ensure record.date is also handled as date
+            if day_label in weekly_hours:
+                weekly_hours[day_label] += work_duration
+
+            # Calculate total hours and overtime
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+    # Get the current month
+    current_month = start_of_week.strftime('%B')
+
+    work_data = list(weekly_hours.values())
+    leave_data = [daily_working_hours if label in leave_days else 0 for label in labels]
+
+    # Pass the labels (days with dates), data (hours), total hours, and overtime to the template
+    context = {
+        'manager_id': manager_id, 
+        'labels': labels,  # List of days with their respective dates
+        'data': work_data,  # Corresponding hours worked
+        'month': current_month, 
+        'leave_data': leave_data, # Pass the current month to the template
+        'week_offset': week_offset,  # Pass the current week offset to the template for navigation
+        'total_hours': total_hours,  # Total hours worked in the week
+        'total_overtime': total_overtime,  # Total overtime worked in the week
+         # Pass the employee ID to the template
+    }
+    
+    return render(request, 'attendance/admin_manager_weekly_chart.html',context)
+
+
+def admin_manager_monthly_chart(request):
+    if request.method == 'POST':
+        manager_id = request.POST.get('manager_id')
+    else:
+        manager_id = request.GET.get('manager_id')
+    
+    # Check if manager_id is provided
+    if not manager_id:
+        return render(request, 'attendance/admin_manager_monthly_chart.html', {
+            'error': 'Manager ID is required.'
+        })
+    
+    # Get the current month offset from GET parameters (default is 0)
+    month_offset = int(request.GET.get('month_offset', 0))
+    
+    # Get today's date and adjust the month by the offset
+    today = datetime.now().date()
+    current_month = today.month + month_offset
+    current_year = today.year
+
+    # Handle year overflow/underflow
+    if current_month < 1:
+        current_month += 12
+        current_year -= 1
+    elif current_month > 12:
+        current_month -= 12
+        current_year += 1
+
+    # Determine the first and last day of the month
+    start_of_month = datetime(current_year, current_month, 1)
+    last_day = monthrange(current_year, current_month)[1]
+    end_of_month = datetime(current_year, current_month, last_day)
+
+    weekly_hours = [0] * 4  # For 4 weeks in a month
+    leave_weeks = [0] * 4   # To track leave days per week
+    week_labels = ["Week 1", "Week 2", "Week 3", "Week 4"]
+    
+    # Variables for total hours and overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    # Get all attendance entries for the selected month
+    attendance_records = Attendance.objects.filter(
+        manager__manager_id=manager_id,
+        date__range=[start_of_month.date(), end_of_month.date()]
+    )
+
+    # Calculate total working hours and overtime for each week
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            week_num = (record.date.day - 1) // 7
+            if week_num < 4:
+                weekly_hours[week_num] += work_duration
+
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+
+
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+    # Calculate weekly averages
+    weekly_averages = [0] * 4
+    for week_num in range(4):
+        if leave_weeks[week_num] == 0 and weekly_hours[week_num] > 0:
+            # Count the working days in that week
+            working_days = Attendance.objects.filter(
+                manager__manager_id=manager_id,
+                date__range=[start_of_month.date() + timedelta(weeks=week_num),
+                             start_of_month.date() + timedelta(weeks=week_num + 1) - timedelta(days=1)],
+                time_in__isnull=False,
+                time_out__isnull=False
+            ).count()
+            if working_days > 0:
+                weekly_averages[week_num] = round(weekly_hours[week_num] / working_days, 2)
+
+    # Get the month name for display
+    current_month_name = start_of_month.strftime('%B')
+
+    # Prepare data for the chart
+    work_data = weekly_hours
+
+    # Pass data to the template
+    context = {
+        'labels': week_labels,  # Days of the month
+        'data': work_data,  # Total hours worked per day
+        'month': current_month_name,  # Month name
+        'month_offset': month_offset,  # Current month offset
+        'total_hours': total_hours,  # Total hours in the month
+        'total_overtime': total_overtime,  # Total overtime in the month
+        'manager_id': manager_id , # Manager ID
+        'average_hours_per_week': total_hours / 4 if total_hours else 0,  # Overall Average
+        'weekly_averages': weekly_averages,  # Add weekly averages
+        
+    }
+    
+    return render(request, 'attendance/admin_manager_monthly_chart.html',context)
+
+
+from leaves.models import LeaveRequest, ManagerLeaveRequest 
+
+def admin_employee_weekly_chart(request):
+    if request.method == 'POST':
+        # Handle POST request for form submission
+        employee_id = request.POST.get('employee_id')
+    else:
+        # Handle GET request for week navigation
+        employee_id = request.GET.get('employee_id')
+    
+    # Check if employee_id is provided
+    if not employee_id:
+        # Handle the case where no Employee ID is provided
+        return render(request, 'attendance/admin_employee_weekly_chart.html', {
+            'error': 'Employee ID is required.'
+        })
+    
+    # Get the current week offset from GET parameters (how many weeks to move forward/backward)
+    week_offset = int(request.GET.get('week_offset', 0))
+    
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)  # Adjust the week by the offset
+    end_of_week = start_of_week + timedelta(days=6)
+
+    # Initialize a dictionary to store total hours per day with the date
+    weekly_hours = {}
+    labels = []
+    
+    # Variables to store total hours for the week and total overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    for i in range(6):  # Monday to Saturday
+        day_date = start_of_week + timedelta(days=i)
+        day_label = day_date.strftime('%a %b %d')  # Format: "Mon Sep 11"
+        labels.append(day_label)
+        weekly_hours[day_label] = 0  # Initialize the hours for each day as 0
+
+    # Get all attendance entries for the selected week
+    attendance_records = Attendance.objects.filter(
+        employee__employee_id=employee_id,  # Filter by the Employee ID
+        date__range=[start_of_week, end_of_week]
+    )
+
+    # Get approved leave requests overlapping with the selected week
+    approved_leaves = LeaveRequest.objects.filter(
+        employee__employee_id=employee_id,
+        status='approved',
+        start_date__lte=end_of_week,
+        end_date__gte=start_of_week
+    )
+
+    # Track leave days
+    leave_days = set()
+    for leave in approved_leaves:
+        leave_start = max(leave.start_date, start_of_week)
+        leave_end = min(leave.end_date, end_of_week)
+        for i in range((leave_end - leave_start).days + 1):
+            leave_day = (leave_start + timedelta(days=i)).strftime('%a %b %d')
+            leave_days.add(leave_day)
+
+    # Calculate total working hours and overtime for each day
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            day_label = record.date.strftime('%a %b %d')  # 'Mon Sep 11', etc.
+            if day_label in weekly_hours:
+                weekly_hours[day_label] += work_duration
+
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+
+
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+    # Get the current month
+    current_month = start_of_week.strftime('%B')
+
+    work_data = list(weekly_hours.values())
+    leave_data = [daily_working_hours if label in leave_days else 0 for label in labels]
+
+    # Pass the labels (days with dates), data (hours), total hours, and overtime to the template
+    context = {
+        'labels': labels,  # List of days with their respective dates
+        'data': work_data, 
+        'leave_data':leave_data,  # Corresponding hours worked
+        'month': current_month,  # Pass the current month to the template
+        'week_offset': week_offset,  # Pass the current week offset to the template for navigation
+        'total_hours': total_hours,  # Total hours worked in the week
+        'total_overtime': total_overtime,  # Total overtime worked in the week
+        'employee_id': employee_id,  # Pass the employee ID to the template
+    }
+    
+    return render(request, 'attendance/admin_employee_weekly_chart.html',context)
+
+def admin_employee_monthly_chart(request):
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+    else:
+        employee_id = request.GET.get('employee_id')
+    
+    # Check if employee_id is provided
+    if not employee_id:
+        return render(request, 'attendance/admin_employee_monthly_chart.html', {
+            'error': 'Employee ID is required.'
+        })
+    
+    # Get the current month offset from GET parameters (default is 0)
+    month_offset = int(request.GET.get('month_offset', 0))
+    
+    # Get today's date and adjust the month by the offset
+    today = datetime.now().date()
+    current_month = today.month + month_offset
+    current_year = today.year
+
+    # Handle year overflow/underflow
+    if current_month < 1:
+        current_month += 12
+        current_year -= 1
+    elif current_month > 12:
+        current_month -= 12
+        current_year += 1
+
+    # Determine the first and last day of the month
+    start_of_month = datetime(current_year, current_month, 1)
+    last_day = monthrange(current_year, current_month)[1]
+    end_of_month = datetime(current_year, current_month, last_day)
+
+    weekly_hours = [0] * 4  # For 4 weeks in a month
+    leave_weeks = [0] * 4   # To track leave days per week
+    week_labels = ["Week 1", "Week 2", "Week 3", "Week 4"]
+    
+    # Variables for total hours and overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    
+
+    # Get all attendance entries for the selected month
+    attendance_records = Attendance.objects.filter(
+        employee__employee_id=employee_id,
+        date__range=[start_of_month.date(), end_of_month.date()]
+    )
+
+    # Calculate total working hours and overtime for each week
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            week_num = (record.date.day - 1) // 7
+            if week_num < 4:
+                weekly_hours[week_num] += work_duration
+
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+    
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+    # Calculate weekly averages
+    weekly_averages = [0] * 4
+    for week_num in range(4):
+        if leave_weeks[week_num] == 0 and weekly_hours[week_num] > 0:
+            # Count the working days in that week
+            working_days = Attendance.objects.filter(
+                employee__employee_id=employee_id,
+                date__range=[start_of_month.date() + timedelta(weeks=week_num),
+                             start_of_month.date() + timedelta(weeks=week_num + 1) - timedelta(days=1)],
+                time_in__isnull=False,
+                time_out__isnull=False
+            ).count()
+            if working_days > 0:
+                weekly_averages[week_num] = round(weekly_hours[week_num] / working_days, 2)
+
+    # Get the month name for display
+    current_month_name = start_of_month.strftime('%B')
+
+    # Prepare data for the chart
+    work_data = weekly_hours
+
+    # Pass data to the template
+    context = {
+        'labels': week_labels,  # Days of the month
+        'data': work_data,  # Total hours worked per day
+        'month': current_month_name,  # Month name
+        'month_offset': month_offset,  # Current month offset
+        'total_hours': total_hours,  # Total hours in the month
+        'total_overtime': total_overtime,  # Total overtime in the month
+        'employee_id': employee_id , # Employee ID
+        'average_hours_per_week': total_hours / 4 if total_hours else 0,  # Overall Average
+        'weekly_averages': weekly_averages,  # Add weekly averages
+    }
+    
+    return render(request, 'attendance/admin_employee_monthly_chart.html',context)
+
+#Checkout time reset part functions
+def employee_request_check_out_reset(request):
+    if request.method == 'POST':
+        # Retrieve employee_id from session
+        user_id = request.session.get('user_id')
+        today = timezone.now().date()  # Get today's date
+
+        # Check if the employee has checked in today
+        try:
+            employee = Employee.objects.get(employee_id=user_id)
+        except Employee.DoesNotExist:
+            messages.error(request, "Employee not found.")
+            return redirect('employee_attendance_form')
+        
+        last_attendance = Attendance.objects.filter(
+            employee=employee,
+            date=today,
+            time_in__isnull=False
+        ).first()
+
+        if not last_attendance:
+            # Employee has not checked in today
+            messages.error(request, "You can't reset the checkout time before checkin.")
+            return redirect('employee_attendance_form')  # Redirect back to the form
+        
+        # Check if a reset request has already been made for today
+        existing_request = ResetRequest.objects.filter(
+            employee=employee,
+            date=today,
+            status='Pending'
+        ).exists()
+
+        if existing_request:
+            # A reset request has already been submitted
+            messages.error(request, "You have already sent the request...Please wait till reset the checkout time.")
+            return redirect('employee_attendance_form')
+
+        # If the employee has checked in and no existing request, process the reset request
+        request_type = request.POST.get('request_type')
+        request_description = request.POST.get('request_description')
+
+        # Insert the new reset request into the model
+        reset_request = ResetRequest(
+            employee=employee,
+            date=today,
+            request_type=request_type,
+            request_description=request_description,
+            status='Pending',
+            created_at=timezone.now()
+        )
+        reset_request.save()
+
+        messages.success(request, 'Your reset request has been submitted successfully.')
+
+        return redirect('employee_attendance_form')
+
+    return render(request, 'attendance/employee_attendance_form.html')
+
+# MD authentication 
+# def md_login(request):
+#     if request.method == 'POST':
+#         form = LoginForm(request.POST)
+#         if form.is_valid():
+#             username = form.cleaned_data['username']
+#             password = form.cleaned_data['password']
+            
+#             try:
+#                 user = ManagingDirector.objects.get(username=username)
+#                 if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+#                     request.session['user'] = username
+#                     return redirect('md_home')
+#                 else:
+#                     messages.error(request, 'Invalid credentials')
+#             except ManagingDirector.DoesNotExist:
+#                 messages.error(request, 'Invalid credentials')
+#     else:
+#         form = LoginForm()
+#     return render(request, 'authentication/md_login.html', {'form': form})
+
+def md_home(request):
+    if 'user' not in request.session:
+        return redirect('md_login')
+    
+    managers = Manager.objects.all()
+    employees = Employee.objects.all()
+    departments = Department.objects.all()
+    shifts = Shift.objects.all()
+    locations = Location.objects.all()
+
+    # Prepare context for rendering the template
+    context = {
+        'managers': managers,
+        'employees': employees,
+        'departments': departments,
+        'shifts': shifts,
+        'locations': locations,
+    }
+
+    return render(request, 'authentication/md_dashboard.html', context)
+
+def md_add_manager(request):
+    if request.method == 'POST':
+        manager_id = request.POST.get('manager_id')
+        manager_name = request.POST.get('manager_name')
+        department_name = request.POST.get('department_name')
+        email = request.POST.get('email')
+        gender = request.POST.get('gender')
+        manager_image = request.FILES.get('manager_image')
+        shift_number = request.POST.get('shift')
+        dob = request.POST.get('dob')
+        hired_date = request.POST.get('hired_date')
+        username = request.POST.get('username')
+        raw_password = request.POST.get('password')
+
+        # Validate the password
+        try:
+            validate_password(raw_password)
+        except ValidationError as e:
+            for message in e.messages:
+                messages.error(request, message)
+            return redirect('md_home')
+
+        hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Check if manager_id already exists (Unique Constraint Handling)
+        if Manager.objects.filter(manager_id=manager_id).exists():
+            messages.error(request, 'Manager ID already exists. Please use a unique ID.')
+            return redirect('md_home')
+
+        # Retrieve the Department and Shift instances
+        try:
+            department = Department.objects.get(department_name=department_name)
+        except Department.DoesNotExist:
+            messages.error(request, 'Selected department does not exist.')
+            return redirect('md_home')
+
+        try:
+            shift = Shift.objects.get(shift_number=shift_number)
+        except Shift.DoesNotExist:
+            messages.error(request, 'Selected shift does not exist.')
+            return redirect('md_home')
+
+        # Create and save the Manager instance
+        manager = Manager(
+            manager_id=manager_id,
+            manager_name=manager_name,
+            department=department,  # Set the ForeignKey reference
+            email=email,
+            gender=gender,
+            manager_image=manager_image,
+            shift=shift,  # Set the ForeignKey reference
+            dob=dob,
+            hired_date=hired_date,
+            username=username,
+            password=hashed_password,
+            role='manager'
+        )
+        manager.save()
+
+        messages.success(request, 'Manager added successfully!')
+        return redirect('md_home')
+
+    return render(request, 'authentication/md_dashboard.html')
+
+def md_add_employee(request):
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+        employee_name = request.POST.get('employee_name')
+        department_name = request.POST.get('department_name')
+        email = request.POST.get('email')
+        gender = request.POST.get('gender')
+        employee_image = request.FILES.get('employee_image')
+        shift_number = request.POST.get('shift')
+        dob = request.POST.get('dob')
+        hired_date = request.POST.get('hired_date')
+        username = request.POST.get('username')
+        raw_password = request.POST.get('password')
+
+        # Validate the password
+        try:
+            validate_password(raw_password)
+        except ValidationError as e:
+            for message in e.messages:
+                messages.error(request, message)
+            return redirect('md_home')
+
+        hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Check if employee_id already exists (Unique Constraint Handling)
+        if Employee.objects.filter(employee_id=employee_id).exists():
+            messages.error(request, 'Employee ID already exists. Please use a unique ID.')
+            return redirect('md_home')
+
+         # Retrieve the Department and Shift instances
+        try:
+            department = Department.objects.get(department_name=department_name)
+        except Department.DoesNotExist:
+            messages.error(request, 'Selected department does not exist.')
+            return redirect('md_home')
+
+        try:
+            shift = Shift.objects.get(shift_number=shift_number)
+        except Shift.DoesNotExist:
+            messages.error(request, 'Selected shift does not exist.')
+            return redirect('md_home')
+
+        # Create and save the employee
+        employee = Employee(
+            employee_id=employee_id,
+            employee_name=employee_name,
+            department=department,
+            email=email,
+            gender=gender,
+            employee_image=employee_image,
+            shift=shift,
+            dob=dob,
+            hired_date=hired_date,
+            username=username,
+            password=hashed_password ,
+            role='employee'
+        )
+        employee.save()
+
+        messages.success(request, 'Employee added successfully')
+        return redirect('md_home')
+
+    return render(request, 'authentication/md_dashboard.html')
+
+def md_add_department(request):
+    if request.method == 'POST':
+        department_id = request.POST.get('department_id')
+        department_name = request.POST.get('department_name')
+
+        # Check if department_id already exists (Unique Constraint Handling)
+        if Department.objects.filter(department_id=department_id).exists():
+            messages.error(request, 'Department ID already exists. Please use a unique ID.')
+            return redirect('md_home')
+
+        # Save the department to MySQL using Django ORM
+        department = Department(department_id=department_id, department_name=department_name)
+        department.save()
+
+        messages.success(request, 'Department added successfully')
+        return redirect('md_home')
+    return render(request, 'authentication/md_dashboard.html')
+
+def md_add_shift(request):
+    if request.method == 'POST':
+        shift_number = request.POST.get('shift_number')
+        shift_start_time = request.POST.get('shift_start')
+        shift_end_time = request.POST.get('shift_end')
+
+        # Save the shift
+        shift = Shift(shift_number=shift_number, shift_start_time=shift_start_time, shift_end_time=shift_end_time)
+        shift.save()
+
+        messages.success(request, 'Shift added successfully!')
+        return redirect('md_home')
+
+    return render(request, 'authentication/md_dashboard.html')
+
+def md_add_location(request):
+    if request.method == 'POST':
+        location_id = request.POST.get('location_id')
+        location_name = request.POST.get('location_name')
+
+        # Check if location_id already exists (Unique Constraint Handling)
+        if Location.objects.filter(location_id=location_id).exists():
+            messages.error(request, 'location ID already exists. Please use a unique ID.')
+            return redirect('md_home')
+
+        # Create and save the Location instance
+        location = Location(
+            location_id=location_id,
+            location_name=location_name
+        )
+        location.save()
+
+        messages.success(request, 'Location added successfully!')
+        return redirect('md_home')
+
+    return render(request, 'authentication/md_dashboard.html')
+
+#Delete functionality perform by md
+def md_delete_manager(request, manager_id):
+    if request.method == 'GET':
+        manager = get_object_or_404(Manager, manager_id=manager_id)
+        manager.delete()
+        messages.success(request, 'Manager deleted successfully!')
+    return redirect('md_home')
+
+def md_delete_employee(request, employee_id):
+    if request.method == 'GET':
+        employee = get_object_or_404(Employee, employee_id=employee_id)
+        employee.delete()
+        messages.success(request, 'Employee deleted successfully!')
+    return redirect('md_home')
+
+def md_delete_department(request, department_id):
+    if request.method == 'GET':
+        department = get_object_or_404(Department, department_id=department_id)
+        department.delete()
+        messages.success(request, 'Department deleted successfully!')
+    return redirect('md_home')
+
+def md_delete_shift(request, shift_number):
+    if request.method == 'GET':
+        shift = get_object_or_404(Shift, shift_number=shift_number)
+        shift.delete()
+        messages.success(request, 'Shift deleted successfully!')
+    return redirect('md_home')
+
+def md_delete_location(request, location_id):
+    if request.method == 'GET':
+        location = get_object_or_404(Location, location_id=location_id)
+        location.delete()
+        messages.success(request, 'Location deleted successfully!')
+    return redirect('md_home')
+
+# Forgot password for md
+def forgot_password_md(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+
+        try:
+            user = ManagingDirector.objects.get(email=email)
+            token = generate_reset_token_for_md(email)  # Generate a reset token
+            if token:
+                reset_link = f"http://127.0.0.1:8000/md/reset_password_md/{token}/"
+
+                send_mail(
+                    'Password Reset Request',
+                    f'Hello,\n\nWe received a request to reset your password. '
+                    f'Click the link below to reset your password:\n\n{reset_link}\n\n'
+                    'If you did not request this change, please ignore this email.\n\nBest regards,\nVulturelines Tech Management Private Ltd.,',
+                    
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+
+                messages.success(request, 'Password reset link sent to your email.')
+                return redirect('md_login')
+            else:
+                messages.error(request, 'Something went wrong. Please try again later.')
+        except ManagingDirector.DoesNotExist:
+            messages.error(request, 'Email not found.')
+    
+    return render(request, 'authentication/forgot_password_md.html')
+
+# Reset password for md
+def reset_password_md(request, token):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+
+        if validate_reset_token_for_md(token):  # Check if the token is valid
+            email = get_email_from_token_for_md(token)  # Get email from token
+            if email:
+                try:
+                    user = ManagingDirector.objects.get(email=email)
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    
+                    # Update the password and clear the reset token and expiration
+                    user.password = hashed_password
+                    user.reset_token = None
+                    user.token_expiration = None
+                    user.save()
+
+                    messages.success(request, 'Password has been reset successfully.')
+                    return redirect('md_login')
+                except ManagingDirector.DoesNotExist:
+                    messages.error(request, 'User not found.')
+            else:
+                messages.error(request, 'Invalid token.')
+        else:
+            messages.error(request, 'Invalid or expired token.')
+
+    return render(request, 'authentication/reset_password_md.html', {'token': token})
+
+def md_manager_attendance_history(request):
+    # Filter attendance records where the manager is not null
+    attendance_records = Attendance.objects.filter(manager__isnull=False)
+
+    if request.method == 'POST':
+        manager_id = request.POST.get('manager_id')
+        from_date = request.POST.get('from_date')
+        to_date = request.POST.get('to_date')
+
+        # Filter by manager's unique identifier (assuming manager_id is the unique identifier field in Manager model)
+        if manager_id:
+            attendance_records = attendance_records.filter(manager__manager_id=manager_id)
+
+        # Filter by date range
+        if from_date and to_date:
+            attendance_records = attendance_records.filter(date__range=[from_date, to_date])
+
+        # Display messages based on attendance records
+        if attendance_records.exists():
+            messages.success(request, f"Found {attendance_records.count()} attendance record(s) for manager ID {manager_id} from {from_date} to {to_date}.")
+        else:
+            messages.warning(request, f"No attendance records found for Manager ID {manager_id} in the selected date range.")
+
+    context = {
+        'attendance_records': attendance_records,
+    }
+    return render(request, 'attendance/md_manager_attendance_history.html', context)
+
+def md_employee_attendance_history(request):
+    # Filter attendance records where the employee is not null
+    attendance_records = Attendance.objects.filter(employee__isnull=False)
+
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+        from_date = request.POST.get('from_date')
+        to_date = request.POST.get('to_date')
+
+        # Filter by employee's unique identifier (assuming employee_id is the unique identifier field in Employee model)
+        if employee_id:
+            attendance_records = attendance_records.filter(employee__employee_id=employee_id)
+
+        # Filter by date range
+        if from_date and to_date:
+            attendance_records = attendance_records.filter(date__range=[from_date, to_date])
+
+        # Display messages based on attendance records
+        if attendance_records.exists():
+            messages.success(request, f"Found {attendance_records.count()} attendance record(s) for employee ID {employee_id} from {from_date} to {to_date}.")
+        else:
+            messages.warning(request, f"No attendance records found for employee ID {employee_id} in the selected date range.")
+
+    context = {
+        'attendance_records': attendance_records,
+    }
+    return render(request, 'attendance/md_employee_attendance_history.html', context)
+
+#Update functionality for MD
+def md_update_manager(request, id):
+    manager = get_object_or_404(Manager, id=id)
+    departments = Department.objects.all()
+    locations = Location.objects.all()
+    shifts = Shift.objects.all()
+
+    if request.method == 'POST':
+        manager_name = request.POST.get('manager_name')
+        manager_id = request.POST.get('manager_id')
+        manager_department_id = request.POST.get('manager_department')  # Use ID for lookup
+        manager_location_id = request.POST.get('manager_location')    # Use ID for lookup
+        manager_shift_number = request.POST.get('manager_shift')
+        manager_email = request.POST.get('manager_email')
+        manager_gender = request.POST.get('manager_gender')
+        manager_image = request.FILES.get('manager_image')
+        manager_dob_str = request.POST.get('manager_dob')
+        manager_hd_str = request.POST.get('manager_hd')
+        manager_username = request.POST.get('manager_username')
+
+        # Ensure the IDs are valid and exist
+        manager_department = get_object_or_404(Department, department_id=manager_department_id)
+        manager_location = get_object_or_404(Location, id=manager_location_id)
+        manager_shift = get_object_or_404(Shift, shift_number=manager_shift_number)
+
+        # Convert date strings to date objects
+        try:
+            manager_dob = parse_date(manager_dob_str)
+            manager_hd = parse_date(manager_hd_str)
+        except (ValueError, TypeError):
+            manager_dob = None
+            manager_hd = None
+            messages.error(request, 'Invalid date format. Please ensure dates are in YYYY-MM-DD format.')
+            return render(request, 'authentication/md_update_manager.html', {'manager': manager, 'departments': departments, 'locations': locations, 'shifts': shifts})
+
+        # Update the manager fields
+        manager.manager_name = manager_name
+        manager.manager_id = manager_id
+        manager.department = manager_department
+        manager.location = manager_location
+        manager.shift = manager_shift
+        manager.email = manager_email
+        manager.gender = manager_gender
+        if manager_image:
+            manager.manager_image = manager_image
+        manager.dob = manager_dob
+        manager.hired_date = manager_hd
+        manager.username = manager_username
+
+        # Save the updated manager
+        manager.save()
+
+        messages.success(request, 'Manager updated successfully.')
+        return redirect('md_home')
+    
+    context = {
+        'manager': manager, 
+        'departments': departments, 
+        'locations': locations, 
+        'shifts': shifts
+    }        
+
+    return render(request, 'authentication/md_update_manager.html', context)
+
+def md_update_employee(request, id):
+    employee = get_object_or_404(Employee, id=id)
+    departments = Department.objects.all()
+    locations = Location.objects.all()
+    shifts = Shift.objects.all()
+
+    if request.method == 'POST':
+        employee_name = request.POST.get('employee_name')
+        employee_id = request.POST.get('employee_id')
+        employee_department_id = request.POST.get('employee_department')  # Use ID for lookup
+        employee_location_id = request.POST.get('employee_location')      # Use ID for lookup
+        employee_shift_number = request.POST.get('employee_shift')
+        employee_email = request.POST.get('employee_email')
+        employee_gender = request.POST.get('employee_gender')
+        employee_image = request.FILES.get('employee_image')
+        employee_dob_str = request.POST.get('employee_dob')
+        employee_hd_str = request.POST.get('employee_hd')
+        employee_username = request.POST.get('employee_username')
+
+        # Ensure the IDs are valid and exist
+        employee_department = get_object_or_404(Department, department_id=employee_department_id)
+        employee_location = get_object_or_404(Location, id=employee_location_id)
+        employee_shift = get_object_or_404(Shift, shift_number=employee_shift_number)
+
+        # Convert date strings to date objects
+        try:
+            employee_dob = parse_date(employee_dob_str)
+            employee_hd = parse_date(employee_hd_str)
+        except (ValueError, TypeError):
+            employee_dob = None
+            employee_hd = None
+            messages.error(request, 'Invalid date format. Please ensure dates are in YYYY-MM-DD format.')
+            return render(request, 'authentication/md_update_employee.html', {'employee': employee, 'departments': departments, 'locations': locations, 'shifts': shifts})
+
+        # Update the employee fields
+        employee.employee_name = employee_name
+        employee.employee_id = employee_id
+        employee.department = employee_department
+        employee.location = employee_location
+        employee.shift = employee_shift
+        employee.email = employee_email
+        employee.gender = employee_gender
+        if employee_image:
+            employee.employee_image = employee_image
+        employee.dob = employee_dob
+        employee.hired_date = employee_hd
+        employee.username = employee_username
+
+        # Save the updated employee
+        employee.save()
+
+        messages.success(request, 'Employee updated successfully.')
+        return redirect('md_home')
+
+    context = {
+        'employee': employee,
+        'departments': departments,
+        'locations': locations,
+        'shifts': shifts
+    }
+
+    return render(request, 'authentication/md_update_employee.html', context)
+    
+def md_update_department(request, id):
+    # Retrieve the Department object by ID
+    department = get_object_or_404(Department, id=id)
+    departments = Department.objects.all()
+   
+    # Prepare context for rendering the template
+    context = {  
+        'department': department,       
+        'departments': departments,       
+    }
+
+    if request.method == 'POST':
+        department_name = request.POST.get('department_name')
+
+        department.department_name = department_name
+        department.save()
+
+        messages.success(request, 'Department updated successfully.')
+        return redirect('md_home')
+    return render(request, 'authentication/md_update_department.html', context)
+
+def md_update_shift(request, id):
+    # Retrieve the Shift object by ID
+    shift = get_object_or_404(Shift, id=id)
+    shifts = Shift.objects.all()
+
+    context = {
+         'shifts': shifts,
+         'shift': shift,
+    }
+
+    if request.method == 'POST':
+        # Retrieve form data
+        shift_number = request.POST.get('shift_number')
+        shift_start_time = request.POST.get('shift_start_time')
+        shift_end_time = request.POST.get('shift_end_time')
+
+        # Update the shift fields
+        shift.shift_number = shift_number
+        shift.shift_start_time = shift_start_time
+        shift.shift_end_time = shift_end_time
+
+        # Save the updated shift
+        shift.save()
+
+        messages.success(request, 'Shift updated successfully.')
+        return redirect('md_home')
+
+    return render(request, 'authentication/md_update_shift.html',  context)
+
+def md_update_location(request, id):
+    # Retrieve the Location object by ID
+    location = get_object_or_404(Location, id=id)
+    locations = Location.objects.all()
+
+    # Prepare context for rendering the template
+    context = {
+         'locations': locations,
+         'location': location,
+    }
+
+    if request.method == 'POST':
+        # Retrieve form data
+        location_name = request.POST.get('location_name')
+        location_id = request.POST.get('location_id')
+        
+        # Update the location fields
+        location.location_name = location_name
+        location.location_id = location_id        
+
+        # Save the updated location
+        location.save()
+
+        messages.success(request, 'Location updated successfully.')
+        return redirect('md_home') 
+
+    return render(request, 'authentication/md_update_location.html', context)
+
+#Md & Manager weekly chart
+
+def md_manager_weekly_chart(request):
+    if request.method == 'POST':
+        # Handle POST request for form submission
+        manager_id = request.POST.get('manager_id')
+    else:
+        # Handle GET request for week navigation
+        manager_id = request.GET.get('manager_id')
+    
+    # Check if manager_id is provided
+    if not manager_id:
+        return render(request, 'attendance/md_manager_weekly_chart.html', {
+            'error': 'Manager ID is required.'
+        })
+    
+    # Get the current week offset from GET parameters (how many weeks to move forward/backward)
+    week_offset = int(request.GET.get('week_offset', 0))
+    
+    today = datetime.now().date()  # Ensure today is a date object
+    start_of_week = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)  # Adjust the week by the offset
+    end_of_week = start_of_week + timedelta(days=6)
+
+    # Initialize a dictionary to store total hours per day with the date
+    weekly_hours = {}
+    labels = []
+   
+
+    # Variables to store total hours for the week and total overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    # Initialize the labels and weekly_hours for each day of the week
+    for i in range(6):  # Loop to include Monday to Sunday
+        day_date = start_of_week + timedelta(days=i)
+        day_label = day_date.strftime('%a %b %d')  # Format: "Mon Sep 11"
+        labels.append(day_label)
+        weekly_hours[day_label] = 0  # Initialize the hours for each day as 0
+
+    # Get all attendance entries for the selected week
+    attendance_records = Attendance.objects.filter(
+        manager__manager_id=manager_id,
+        date__range=[start_of_week, end_of_week]
+    )
+
+    # Get all approved leave requests for the selected week
+    approved_leaves = ManagerLeaveRequest.objects.filter(
+        manager__manager_id=manager_id,
+        start_date__lte=end_of_week,
+        end_date__gte=start_of_week,
+        status='approved'
+    )
+
+    leave_days = set()
+    for leave in approved_leaves:
+        # Iterate through the leave days within the week
+        leave_start = max(leave.start_date, start_of_week)
+        leave_end = min(leave.end_date, end_of_week)
+        for i in range((leave_end - leave_start).days + 1):
+            leave_day = (leave_start + timedelta(days=i)).strftime('%a %b %d')
+            leave_days.add(leave_day)
+
+
+    # Calculate total working hours and overtime for each day
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in))
+            hours_worked = work_duration.total_seconds() / 3600  # Convert seconds to hours
+
+            day_label = record.date.strftime('%a %b %d')  # 'Mon Sep 11', etc.
+            if day_label in weekly_hours:
+                weekly_hours[day_label] += hours_worked
+
+            # Calculate total hours and overtime
+            total_hours += hours_worked
+            if hours_worked > daily_working_hours:
+                total_overtime += hours_worked - daily_working_hours
+
+    
+
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+    # Get the current month
+    current_month = start_of_week.strftime('%B')
+
+    # Prepare data for the chart
+    work_data = list(weekly_hours.values())
+    leave_data = [daily_working_hours if label in leave_days else 0 for label in labels]
+
+    # Pass the labels, work data, leave data, total hours, and overtime to the template
+    context = {
+        'manager_id': manager_id, 
+        'labels': labels,  # List of days with their respective dates
+        'data': work_data,  # Corresponding hours worked
+        'leave_data': leave_data,  # Leave days data for the chart
+        'month': current_month,  # Pass the current month to the template
+        'week_offset': week_offset,  # Pass the current week offset to the template for navigation
+        'total_hours': total_hours,  # Total hours worked in the week
+        'total_overtime': total_overtime,  # Total overtime worked in the week
+    }
+    
+    return render(request, 'attendance/md_manager_weekly_chart.html', context)
+
+
+
+from collections import defaultdict
+
+def md_manager_monthly_chart(request):
+    if request.method == 'POST':
+        manager_id = request.POST.get('manager_id')
+    else:
+        manager_id = request.GET.get('manager_id')
+
+    # Check if manager_id is provided
+    if not manager_id:
+        return render(request, 'attendance/md_manager_monthly_chart.html', {
+            'error': 'Manager ID is required.'
+        })
+    
+    # Get the current month offset from GET parameters (default is 0)
+    month_offset = int(request.GET.get('month_offset', 0))
+    
+    # Get today's date and adjust the month by the offset
+    today = datetime.now().date()
+    current_month = today.month + month_offset
+    current_year = today.year
+
+    # Handle year overflow/underflow
+    if current_month < 1:
+        current_month += 12
+        current_year -= 1
+    elif current_month > 12:
+        current_month -= 12
+        current_year += 1
+
+    # Determine the first and last day of the month
+    start_of_month = datetime(current_year, current_month, 1)
+    last_day = monthrange(current_year, current_month)[1]
+    end_of_month = datetime(current_year, current_month, last_day)
+
+    # Initialize a dictionary to store total hours per day and weekly data
+    weekly_hours = [0] * 4  # For 4 weeks in a month
+    leave_weeks = [0] * 4   # To track leave days per week
+    week_labels = ["Week 1", "Week 2", "Week 3", "Week 4"]
+    
+    # Variables for total hours and overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    # Get all attendance entries for the selected month
+    attendance_records = Attendance.objects.filter(
+        manager__manager_id=manager_id,
+        date__range=[start_of_month.date(), end_of_month.date()]
+    )
+    
+     # Calculate total working hours and overtime for each week
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            week_num = (record.date.day - 1) // 7
+            if week_num < 4:
+                weekly_hours[week_num] += work_duration
+
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+     # Calculate weekly averages
+    weekly_averages = [0] * 4
+    for week_num in range(4):
+        if leave_weeks[week_num] == 0 and weekly_hours[week_num] > 0:
+            # Count the working days in that week
+            working_days = Attendance.objects.filter(
+                manager__manager_id=manager_id,
+                date__range=[start_of_month.date() + timedelta(weeks=week_num),
+                             start_of_month.date() + timedelta(weeks=week_num + 1) - timedelta(days=1)],
+                time_in__isnull=False,
+                time_out__isnull=False
+            ).count()
+            if working_days > 0:
+                weekly_averages[week_num] = round(weekly_hours[week_num] / working_days, 2)
+
+    # Get the month name for display
+    current_month_name = start_of_month.strftime('%B')
+  
+     # Prepare data for the chart
+    work_data = weekly_hours
+
+    # Pass data to the template
+    context = {
+        'labels': week_labels,  # Days of the month
+        'data': work_data, # Total hours worked per day
+        'month': current_month_name,  # Month name
+        'month_offset': month_offset,  # Current month offset
+        'total_hours': total_hours,  # Total hours in the month
+        'total_overtime': total_overtime,  # Total overtime in the month
+        'manager_id': manager_id,  # Manager ID
+        'average_hours_per_week': total_hours / 4 if total_hours else 0,  # Overall Average
+
+        'weekly_averages': weekly_averages  # Weekly averages
+    }
+    
+    return render(request, 'attendance/md_manager_monthly_chart.html', context)
+
+
+def md_employee_weekly_chart(request):
+    if request.method == 'POST':
+        # Handle POST request for form submission
+        employee_id = request.POST.get('employee_id')
+    else:
+        # Handle GET request for week navigation
+        employee_id = request.GET.get('employee_id')
+
+    # Check if employee_id is provided
+    if not employee_id:
+        # Handle the case where no Employee ID is provided
+        return render(request, 'attendance/md_employee_weekly_chart.html', {
+            'error': 'Employee ID is required.'
+        })
+    
+    # Get the current week offset from GET parameters (how many weeks to move forward/backward)
+    week_offset = int(request.GET.get('week_offset', 0))
+    
+    today = datetime.now().date()  # Ensure today is a date object
+    start_of_week = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)  # Adjust the week by the offset
+    end_of_week = start_of_week + timedelta(days=6)
+
+    # Initialize a dictionary to store total hours per day with the date
+    weekly_hours = {}
+    labels = []
+    
+    # Variables to store total hours for the week and total overtime
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    # Initialize the labels and weekly_hours for each day of the week
+    for i in range(7):  # Loop to include Sunday as well
+        day_date = start_of_week + timedelta(days=i)
+        day_label = day_date.strftime('%a %b %d')
+        labels.append(day_label)
+        weekly_hours[day_label] = 0  # Initialize the hours for each day as 0
+
+    # Get all attendance entries for the selected week
+    attendance_records = Attendance.objects.filter(
+        employee__employee_id=employee_id,  # Filter by the Employee ID
+        date__range=[start_of_week, end_of_week]
+    )
+
+    # Get approved leave requests that overlap with the selected week
+    approved_leaves = LeaveRequest.objects.filter(
+        employee__employee_id=employee_id,
+        status='approved',
+        start_date__lte=end_of_week,
+        end_date__gte=start_of_week
+    )
+
+    # Mark leave days
+    leave_days = set()
+    for leave in approved_leaves:
+        # Iterate through the leave days within the week
+        leave_start = max(leave.start_date, start_of_week)
+        leave_end = min(leave.end_date, end_of_week)
+        for i in range((leave_end - leave_start).days + 1):
+            leave_day = (leave_start + timedelta(days=i)).strftime('%a %b %d')
+            leave_days.add(leave_day)
+
+    # Calculate total working hours and overtime for each day
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            # Convert time_in and time_out to datetime and calculate work duration
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            day_label = record.date.strftime('%a %b %d')  # Ensure record.date is also handled as date
+            if day_label in weekly_hours:
+                weekly_hours[day_label] += work_duration
+
+            # Calculate total hours and overtime
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+    # Get the current month based on the start of the week
+    current_month = start_of_week.strftime('%B')
+
+    # Prepare data for the chart
+    work_data = list(weekly_hours.values())
+    leave_data = [daily_working_hours if label in leave_days else 0 for label in labels]
+
+    # Pass the labels, work data, leave data, total hours, and overtime to the template
+    context = {
+        'labels': labels,
+        'data': work_data,
+        'leave_data': leave_data,
+        'month': current_month,
+        'week_offset': week_offset,
+        'total_hours': total_hours,
+        'total_overtime': total_overtime,
+        'employee_id': employee_id,  # Pass the employee ID to the template
+    }
+
+    return render(request, 'attendance/md_employee_weekly_chart.html', context)
+
+
+def md_employee_monthly_chart(request):
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+    else:
+        employee_id = request.GET.get('employee_id')
+    
+    # Check if employee_id is provided
+    if not employee_id:
+        return render(request, 'attendance/md_employee_monthly_chart.html', {
+            'error': 'Employee ID is required.'
+        })
+    
+    # Get the current month offset from GET parameters (default is 0)
+    month_offset = int(request.GET.get('month_offset', 0))
+    
+    # Get today's date and adjust the month by the offset
+    today = datetime.now().date()
+    current_month = today.month + month_offset
+    current_year = today.year
+
+    # Handle year overflow/underflow
+    if current_month < 1:
+        current_month += 12
+        current_year -= 1
+    elif current_month > 12:
+        current_month -= 12
+        current_year += 1
+
+    # Determine the first and last day of the month
+    start_of_month = datetime(current_year, current_month, 1)
+    last_day = monthrange(current_year, current_month)[1]
+    end_of_month = datetime(current_year, current_month, last_day)
+
+    # Initialize data structures to store weekly hours and leave information
+    weekly_hours = [0, 0, 0, 0]  # For 4 weeks
+    leave_weeks = [0, 0, 0, 0]  # To track the number of working days per week
+    week_labels = ["Week 1", "Week 2", "Week 3", "Week 4"]  # Week labels
+    
+    total_hours = 0
+    total_overtime = 0
+    daily_working_hours = 8  # Standard working hours per day
+
+    # Get attendance records for the employee during the selected month
+    attendance_records = Attendance.objects.filter(
+        employee__employee_id=employee_id,
+        date__range=[start_of_month.date(), end_of_month.date()]
+    )
+
+     # Calculate total working hours and overtime for each week
+    for record in attendance_records:
+        if record.time_in and record.time_out:
+            work_duration = (datetime.combine(datetime.today(), record.time_out) - 
+                             datetime.combine(datetime.today(), record.time_in)).total_seconds() / 3600
+            week_num = (record.date.day - 1) // 7
+            if week_num < 4:
+                weekly_hours[week_num] += work_duration
+
+            total_hours += work_duration
+            if work_duration > daily_working_hours:
+                total_overtime += work_duration - daily_working_hours
+    
+    total_hours = round(total_hours, 2)
+    total_overtime = round(total_overtime, 2)
+
+
+    # Calculate weekly averages
+    weekly_averages = [0] * 4
+    for week_num in range(4):
+        if leave_weeks[week_num] == 0 and weekly_hours[week_num] > 0:
+            # Count the working days in that week
+            working_days = Attendance.objects.filter(
+                employee__employee_id=employee_id,
+                date__range=[start_of_month.date() + timedelta(weeks=week_num),
+                             start_of_month.date() + timedelta(weeks=week_num + 1) - timedelta(days=1)],
+                time_in__isnull=False,
+                time_out__isnull=False
+            ).count()
+            if working_days > 0:
+                weekly_averages[week_num] = round(weekly_hours[week_num] / working_days, 2)
+
+    # Get the month name for display
+    current_month_name = start_of_month.strftime('%B')
+
+    # Prepare data for the chart
+    work_data = weekly_hours
+
+    # Prepare the context data for the template
+    context = {
+        'labels': week_labels,  # Days of the month
+        'data': work_data,  # Total hours worked per day
+        'month': current_month_name,  # Month name
+        'month_offset': month_offset,  # Current month offset
+        'total_hours': total_hours,  # Total hours in the month
+        'total_overtime': total_overtime,  # Total overtime in the month
+        'employee_id': employee_id , # Employee ID
+        'average_hours_per_week': total_hours / 4 if total_hours else 0,  # Overall Average
+        'weekly_averages': weekly_averages,  # Add weekly averages
+    }
+    
+    return render(request, 'attendance/md_employee_monthly_chart.html', context)
+
+
+def view_employee_profile(request, id):
+    employee = get_object_or_404(Employee, employee_id=id)
+    return render(request, 'authentication/view_employee_profile.html', {'employee': employee})
+
+
+def update_employee_profile(request,id):
+    employee = get_object_or_404(Employee,id=id)
+
+    if request.method == 'POST':
+        try:
+            # Update the employee fields with the provided data
+            employee.employee_name = request.POST.get('employee_name')
+            employee.username = request.POST.get('username')
+            employee.email = request.POST.get('email')
+            employee.gender = request.POST.get('gender')
+            employee.dob = request.POST.get('dob')
+            employee.phone_number = request.POST.get('phone_number')
+            employee.address = request.POST.get('address')
+            employee.state = request.POST.get('state')
+            employee.city = request.POST.get('city')
+            employee.country = request.POST.get('country')
+            employee.pincode = request.POST.get('pincode')
+            employee.linkedin_profile_link = request.POST.get('linkedin_profile_link')
+
+            # Handle the employee image if provided
+            if request.FILES.get('employee_image'):
+                employee.employee_image = request.FILES.get('employee_image')
+
+            # Save the updated employee object
+            employee.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('employee_dashboard')
+
+        except ValidationError as e:
+            messages.error(request, f"Error updating profile: {str(e)}")
+            return redirect('employee_dashboard')
+
+    return render(request, 'authentication/update_employee_profile.html',{'employee':employee})
+
+
+def view_manager_profile(request, id):
+    manager = get_object_or_404(Manager, manager_id=id)
+    return render(request, 'authentication/view_manager_profile.html', {'manager': manager})
+
+def update_manager_profile(request, id):
+    manager = get_object_or_404(Manager,id=id)
+
+    if request.method == 'POST':
+        try:
+            # Update the manager fields with the provided data
+            manager.manager_name = request.POST.get('manager_name')
+            manager.username = request.POST.get('username')
+            manager.email = request.POST.get('email')
+            manager.gender = request.POST.get('gender')
+            manager.dob = request.POST.get('dob')
+            manager.phone_number = request.POST.get('phone_number')
+            manager.state = request.POST.get('state')
+            manager.address = request.POST.get('address')
+            manager.city = request.POST.get('city')
+            manager.country = request.POST.get('country')
+            manager.pincode = request.POST.get('pincode')
+            manager.linkedin_profile_link = request.POST.get('linkedin_profile_link')
+
+            # Handle the manager image if provided
+            if request.FILES.get('manager_image'):
+                manager.manager_image = request.FILES.get('manager_image')
+
+            # Save the updated manager object
+            manager.save()
+            messages.success(request, 'Manager profile updated successfully.')
+            return redirect('manager_dashboard')
+
+        except ValidationError as e:
+            messages.error(request, f"Error updating profile: {str(e)}")
+            return redirect('manager_dashboard')
+
+    return render(request,'authentication/update_manager_profile.html',{'manager':manager})
+
+def manager_view_employee_profile(request):
+    if request.method == 'POST':
+        # Get employee ID from the form
+        employee_id = request.POST.get('employee_id')
+        if not employee_id:
+            messages.error(request, "Employee ID is required.")
+            return redirect('manager_dashboard')
+
+        try:
+            # Get the employee object from the database
+            employee = Employee.objects.get(employee_id=employee_id)
+            
+        except Employee.DoesNotExist:
+            messages.error(request, f"No employee found with ID {employee_id}.")
+            return redirect('manager_dashboard')
+    
+        return render(request, 'authentication/manager_view_employee_profile.html', {'employee': employee})
+
+    # If request method is GET or invalid request
+    return redirect('manager_dashboard')
+
+
+
+
