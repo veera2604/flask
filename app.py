@@ -5,6 +5,10 @@ import os
 file_name=os.listdir()
 print(file_name)
 
+for i in file_name:
+
+    if i=="admin.py":
+        print("welcome")
 
 
 @app.before_request
